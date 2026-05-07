@@ -1,24 +1,16 @@
-//
-//  ContentView.swift
-//  NewsFlow 3.0
-//
-//  Created by Jorge Lorenzo on 31/3/25.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject var articlesViewModel = ArticlesViewModel()
+    @StateObject var socialViewModel = SocialPostsViewModel.shared
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        HomeView()
+            .environmentObject(articlesViewModel)
+            .environmentObject(socialViewModel)
     }
 }
 
 #Preview {
     ContentView()
-}
+} 

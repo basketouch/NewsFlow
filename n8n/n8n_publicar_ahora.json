@@ -1,0 +1,158 @@
+{
+  "name": "NewsFlow - Publicar Ahora (Webhook)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "newsflow-publicar-ahora",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-600, 0],
+      "id": "33333333-3333-3333-3333-333333333301",
+      "name": "Webhook Publicar Ahora"
+    },
+    {
+      "parameters": {
+        "url": "=https://iajrttxaxutvwubjcaxc.supabase.co/rest/v1/social_posts?id=eq.{{ $json.body.post_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhanJ0dHhheHV0dnd1YmpjYXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTkwOTAsImV4cCI6MjA5MTY3NTA5MH0.7EasCvg0qSf-OXlXYQAfmQZwe2lCmk1jRjQnNk6qd54" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhanJ0dHhheHV0dnd1YmpjYXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTkwOTAsImV4cCI6MjA5MTY3NTA5MH0.7EasCvg0qSf-OXlXYQAfmQZwe2lCmk1jRjQnNk6qd54" }
+          ]
+        },
+        "options": { "splitIntoItems": true }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-360, 0],
+      "id": "33333333-3333-3333-3333-333333333302",
+      "name": "Get Post"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{
+                  "id": "cond-li",
+                  "leftValue": "={{ $json.red_social }}",
+                  "rightValue": "LinkedIn",
+                  "operator": { "type": "string", "operation": "equals" }
+                }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "LinkedIn"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{
+                  "id": "cond-x",
+                  "leftValue": "={{ $json.red_social }}",
+                  "rightValue": "X",
+                  "operator": { "type": "string", "operation": "equals" }
+                }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "X"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [-120, 0],
+      "id": "33333333-3333-3333-3333-333333333303",
+      "name": "Red Social"
+    },
+    {
+      "parameters": {
+        "person": "KkfNk2EbKo",
+        "text": "={{ $json.texto_enriquecido || $json.texto }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [120, -100],
+      "id": "33333333-3333-3333-3333-333333333304",
+      "name": "Publicar LinkedIn",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "Te1DgFQnZ4AJsAMs",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// TODO: conectar X/Twitter\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [120, 100],
+      "id": "33333333-3333-3333-3333-333333333305",
+      "name": "TODO: Publicar X"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://iajrttxaxutvwubjcaxc.supabase.co/rest/v1/social_posts?id=eq.{{ $('Get Post').item.json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhanJ0dHhheHV0dnd1YmpjYXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTkwOTAsImV4cCI6MjA5MTY3NTA5MH0.7EasCvg0qSf-OXlXYQAfmQZwe2lCmk1jRjQnNk6qd54" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhanJ0dHhheHV0dnd1YmpjYXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTkwOTAsImV4cCI6MjA5MTY3NTA5MH0.7EasCvg0qSf-OXlXYQAfmQZwe2lCmk1jRjQnNk6qd54" },
+            { "name": "Prefer",        "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "publicado",         "value": "=true" },
+            { "name": "estado",            "value": "Publicado" },
+            { "name": "fecha_modificacion","value": "={{ new Date().toISOString() }}" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [360, 0],
+      "id": "33333333-3333-3333-3333-333333333306",
+      "name": "Marcar Publicado"
+    }
+  ],
+  "connections": {
+    "Webhook Publicar Ahora": {
+      "main": [[{ "node": "Get Post", "type": "main", "index": 0 }]]
+    },
+    "Get Post": {
+      "main": [[{ "node": "Red Social", "type": "main", "index": 0 }]]
+    },
+    "Red Social": {
+      "main": [
+        [{ "node": "Publicar LinkedIn", "type": "main", "index": 0 }],
+        [{ "node": "TODO: Publicar X",  "type": "main", "index": 0 }]
+      ]
+    },
+    "Publicar LinkedIn": {
+      "main": [[{ "node": "Marcar Publicado", "type": "main", "index": 0 }]]
+    },
+    "TODO: Publicar X": {
+      "main": [[{ "node": "Marcar Publicado", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

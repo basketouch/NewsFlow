@@ -9,6 +9,9 @@ import SwiftUI
 
 @main
 struct NewsFlow_3_0App: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) var scenePhase
+
     var body: some Scene {
         WindowGroup {
             ContentView()

@@ -1,0 +1,104 @@
+{
+  "name": "NewsFlow: Agente Contenido Diario",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-content",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-001",
+      "name": "Webhook Agente",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "generate-content"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst title = body.title || '';\nconst description = body.description || '';\nconst url = body.url || '';\nconst extra = body.extra_text || body.content || '';\n\nif (!title && !description && !extra) {\n  throw new Error('Necesitas title, description o extra_text');\n}\n\nconst systemPrompt = `Eres el gestor de contenido de Jorge Lorenzo, ex-piloto MotoGP reconvertido en referente de liderazgo, alto rendimiento y mentalidad ganadora. Genera posts para redes sociales basados en el contenido recibido. REGLAS: Conecta siempre con liderazgo y alto rendimiento. Usa perspectiva de alguien que ha competido al maximo nivel. NUNCA uses comillas dobles dentro de los textos. Devuelve SOLO JSON valido en una sola linea.`;\n\nconst userPrompt = `CONTENIDO:\\nTitulo: ${title}\\nDescripcion: ${description}\\nURL: ${url}\\nTexto extra: ${extra}\\n\\nDevuelve exactamente este JSON:\\n{\"topic\":\"tema en 5 palabras\",\"linkedin_post\":\"post completo 300-600 chars con leccion liderazgo bullets y hashtags\",\"linkedin_score\":8,\"instagram_post\":\"post 100-150 chars hook emojis hashtags\",\"instagram_image_prompt\":\"image description in english\",\"instagram_score\":7,\"twitter_post\":\"tweet max 280 chars hook fuerte\",\"twitter_score\":7,\"tiktok_script\":\"guion 60s: hook 0-3s desarrollo CTA\",\"tiktok_score\":6,\"hashtags\":[\"tag1\",\"tag2\",\"tag3\"]}`;\n\nreturn [{ json: { systemPrompt, userPrompt, title, description, url, extra } }];"
+      },
+      "id": "node-002",
+      "name": "Construir Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer TU_OPENAI_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.systemPrompt) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($json.userPrompt) }} }\n  ],\n  \"max_tokens\": 2000\n}",
+        "options": {}
+      },
+      "id": "node-003",
+      "name": "GPT Generar Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [520, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.choices?.[0]?.message?.content || '';\n\nlet data;\ntry {\n  data = JSON.parse(content);\n} catch(e) {\n  throw new Error('JSON invalido: ' + content.substring(0, 300));\n}\n\nconst prev = $('Construir Prompt').first().json;\n\nreturn [{ json: {\n  date: new Date().toISOString().split('T')[0],\n  topic: data.topic || prev.title,\n  source_url: prev.url || null,\n  linkedin_post: data.linkedin_post || null,\n  linkedin_score: data.linkedin_score || null,\n  instagram_post: data.instagram_post || null,\n  instagram_image_prompt: data.instagram_image_prompt || null,\n  instagram_score: data.instagram_score || null,\n  twitter_post: data.twitter_post || null,\n  twitter_score: data.twitter_score || null,\n  tiktok_script: data.tiktok_script || null,\n  tiktok_score: data.tiktok_score || null,\n  hashtags: data.hashtags || [],\n  status: 'pending_review'\n} }];"
+      },
+      "id": "node-004",
+      "name": "Parsear Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://iajrttxaxutvwubjcaxc.supabase.co/rest/v1/content_daily",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhanJ0dHhheHV0dnd1YmpjYXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTkwOTAsImV4cCI6MjA5MTY3NTA5MH0.7EasCvg0qSf-OXlXYQAfmQZwe2lCmk1jRjQnNk6qd54" },
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhanJ0dHhheHV0dnd1YmpjYXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTkwOTAsImV4cCI6MjA5MTY3NTA5MH0.7EasCvg0qSf-OXlXYQAfmQZwe2lCmk1jRjQnNk6qd54" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "node-005",
+      "name": "Guardar Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1040, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, id: $json[0]?.id, topic: $json[0]?.topic }) }}"
+      },
+      "id": "node-006",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1300, 0]
+    }
+  ],
+  "connections": {
+    "Webhook Agente": { "main": [[{ "node": "Construir Prompt", "type": "main", "index": 0 }]] },
+    "Construir Prompt": { "main": [[{ "node": "GPT Generar Posts", "type": "main", "index": 0 }]] },
+    "GPT Generar Posts": { "main": [[{ "node": "Parsear Respuesta", "type": "main", "index": 0 }]] },
+    "Parsear Respuesta": { "main": [[{ "node": "Guardar Supabase", "type": "main", "index": 0 }]] },
+    "Guardar Supabase": { "main": [[{ "node": "Responder", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "Europe/Madrid" }
+}

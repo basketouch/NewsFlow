@@ -1,0 +1,547 @@
+{
+  "name": "NewsFlow — Video Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+      },
+      "id": "sch-001",
+      "name": "Cada 5 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [180, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/publish_queue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "eq.ready" },
+            { "name": "select", "value": "*" },
+            { "name": "order",  "value": "created_at.asc" },
+            { "name": "limit",  "value": "3" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "htp-001",
+      "name": "Obtener vídeos listos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nif (!Array.isArray(rows) || rows.length === 0) return [];\nreturn rows.map(r => ({ json: r }));"
+      },
+      "id": "cod-001",
+      "name": "Separar por vídeo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/publish_queue?id=eq.{{ $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",       "value": "={{ $env.SUPABASE_KEY }}" },
+            { "name": "Authorization","value": "=Bearer {{ $env.SUPABASE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer",       "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={ \"status\": \"publishing\" }",
+        "options": {}
+      },
+      "id": "htp-002",
+      "name": "Marcar como publicando",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": { "__rl": true, "mode": "id", "value": "={{ $json.drive_file_id }}" },
+        "options": {}
+      },
+      "id": "gdv-001",
+      "name": "Descargar de Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1060, 300],
+      "credentials": {
+        "googleDriveOAuth2Api": { "id": "REEMPLAZA_CON_TU_CREDENTIAL_ID", "name": "Google Drive" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/storage/v1/object/videos/{{ $json.id }}.mp4",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",       "value": "={{ $env.SUPABASE_KEY }}" },
+            { "name": "Authorization","value": "=Bearer {{ $env.SUPABASE_KEY }}" },
+            { "name": "Content-Type", "value": "video/mp4" },
+            { "name": "x-upsert",    "value": "true" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "htp-003",
+      "name": "Subir a Supabase Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst videoPublicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/videos/${item.id}.mp4`;\nreturn [{ json: { ...item, videoPublicUrl } }];"
+      },
+      "id": "cod-002",
+      "name": "Construir URL pública",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [{
+            "id": "c-yt",
+            "leftValue": "={{ $json.platforms.includes('youtube') }}",
+            "rightValue": true,
+            "operator": { "type": "boolean", "operation": "true" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-yt",
+      "name": "¿YouTube?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1720, 300]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.title }}",
+        "categoryId": "22",
+        "description": "={{ $json.description + '\\n\\n' + $json.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ') }}",
+        "privacyStatus": "public",
+        "options": { "tags": "={{ $json.hashtags.join(',') }}" }
+      },
+      "id": "ytb-001",
+      "name": "Subir a YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [1940, 160],
+      "credentials": {
+        "youTubeOAuth2Api": { "id": "REEMPLAZA_CON_TU_CREDENTIAL_ID", "name": "YouTube" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst ytUrl = item.id ? `https://youtube.com/watch?v=${item.id}` : null;\nreturn [{ json: { ...item, publishedUrls: { ...(item.publishedUrls || {}), youtube: ytUrl } } }];"
+      },
+      "id": "cod-yt",
+      "name": "Guardar URL YouTube",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 160]
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "id": "mrg-yt",
+      "name": "Merge YouTube",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2380, 300]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [{
+            "id": "c-tt",
+            "leftValue": "={{ $json.platforms.includes('tiktok') }}",
+            "rightValue": true,
+            "operator": { "type": "boolean", "operation": "true" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-tt",
+      "name": "¿TikTok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2600, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.TIKTOK_ACCESS_TOKEN }}" },
+            { "name": "Content-Type",  "value": "application/json; charset=UTF-8" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"post_info\": {\n    \"title\": \"{{ $json.title }}\",\n    \"privacy_level\": \"PUBLIC_TO_EVERYONE\",\n    \"disable_duet\": false,\n    \"disable_stitch\": false,\n    \"disable_comment\": false\n  },\n  \"source_info\": {\n    \"source\": \"PULL_FROM_URL\",\n    \"video_url\": \"{{ $json.videoPublicUrl }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "htp-tt1",
+      "name": "TikTok — Publicar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2820, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst publishId = item.data?.publish_id;\nreturn [{ json: { ...item, publishedUrls: { ...(item.publishedUrls || {}), tiktok: publishId ? `https://www.tiktok.com/@me/video/${publishId}` : null } } }];"
+      },
+      "id": "cod-tt",
+      "name": "Guardar URL TikTok",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3040, 160]
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "id": "mrg-tt",
+      "name": "Merge TikTok",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3260, 300]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [{
+            "id": "c-ig",
+            "leftValue": "={{ $json.platforms.includes('instagram') }}",
+            "rightValue": true,
+            "operator": { "type": "boolean", "operation": "true" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-ig",
+      "name": "¿Instagram?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $env.IG_USER_ID }}/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.IG_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "media_type",  "value": "REELS" },
+            { "name": "video_url",   "value": "={{ $json.videoPublicUrl }}" },
+            { "name": "caption",     "value": "={{ $json.description + '\\n\\n' + $json.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ') }}" },
+            { "name": "share_to_feed", "value": "true" },
+            { "name": "access_token", "value": "={{ $env.IG_ACCESS_TOKEN }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "htp-ig1",
+      "name": "Instagram — Crear media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3700, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $env.IG_USER_ID }}/media_publish",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.IG_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "creation_id", "value": "={{ $json.id }}" },
+            { "name": "access_token","value": "={{ $env.IG_ACCESS_TOKEN }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "htp-ig2",
+      "name": "Instagram — Publicar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3920, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst igId = item.id;\nreturn [{ json: { ...item, publishedUrls: { ...(item.publishedUrls || {}), instagram: igId ? `https://www.instagram.com/p/${igId}` : null } } }];"
+      },
+      "id": "cod-ig",
+      "name": "Guardar URL Instagram",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4140, 160]
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "id": "mrg-ig",
+      "name": "Merge Instagram",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [4360, 300]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [{
+            "id": "c-th",
+            "leftValue": "={{ $json.platforms.includes('threads') }}",
+            "rightValue": true,
+            "operator": { "type": "boolean", "operation": "true" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-th",
+      "name": "¿Threads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [4580, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.threads.net/v1.0/{{ $env.THREADS_USER_ID }}/threads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.THREADS_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "media_type", "value": "VIDEO" },
+            { "name": "video_url",  "value": "={{ $json.videoPublicUrl }}" },
+            { "name": "text",       "value": "={{ $json.description + '\\n\\n' + $json.hashtags.map(h => h.startsWith('#') ? h : '#'+h).join(' ') }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "htp-th1",
+      "name": "Threads — Crear",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4800, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.threads.net/v1.0/{{ $env.THREADS_USER_ID }}/threads_publish",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.THREADS_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "creation_id", "value": "={{ $json.id }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "htp-th2",
+      "name": "Threads — Publicar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [5020, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst thId = item.id;\nreturn [{ json: { ...item, publishedUrls: { ...(item.publishedUrls || {}), threads: thId ? `https://www.threads.net/t/${thId}` : null } } }];"
+      },
+      "id": "cod-th",
+      "name": "Guardar URL Threads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5240, 160]
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "id": "mrg-th",
+      "name": "Merge Threads",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [5460, 300]
+    },
+
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/publish_queue?id=eq.{{ $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",       "value": "={{ $env.SUPABASE_KEY }}" },
+            { "name": "Authorization","value": "=Bearer {{ $env.SUPABASE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer",       "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"status\": \"published\",\n  \"published_urls\": {{ JSON.stringify($json.publishedUrls || {}) }}\n}",
+        "options": {}
+      },
+      "id": "htp-pub",
+      "name": "Marcar como publicado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [5680, 300]
+    },
+
+    {
+      "parameters": {},
+      "id": "err-001",
+      "name": "Error en workflow",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [180, 600]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/publish_queue?id=eq.{{ $json.execution.customData }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",       "value": "={{ $env.SUPABASE_KEY }}" },
+            { "name": "Authorization","value": "=Bearer {{ $env.SUPABASE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer",       "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"status\": \"error\",\n  \"error_msg\": \"{{ $json.execution.lastNodeExecuted }}: {{ $json.execution.error.message }}\"\n}",
+        "options": {}
+      },
+      "id": "htp-err",
+      "name": "Marcar error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 600]
+    }
+  ],
+
+  "connections": {
+    "Cada 5 minutos":        { "main": [[{ "node": "Obtener vídeos listos",   "type": "main", "index": 0 }]] },
+    "Obtener vídeos listos": { "main": [[{ "node": "Separar por vídeo",       "type": "main", "index": 0 }]] },
+    "Separar por vídeo":     { "main": [[{ "node": "Marcar como publicando",  "type": "main", "index": 0 }]] },
+    "Marcar como publicando":{ "main": [[{ "node": "Descargar de Drive",      "type": "main", "index": 0 }]] },
+    "Descargar de Drive":    { "main": [[{ "node": "Subir a Supabase Storage","type": "main", "index": 0 }]] },
+    "Subir a Supabase Storage": { "main": [[{ "node": "Construir URL pública","type": "main", "index": 0 }]] },
+    "Construir URL pública": { "main": [[{ "node": "¿YouTube?",              "type": "main", "index": 0 }]] },
+
+    "¿YouTube?": {
+      "main": [
+        [{ "node": "Subir a YouTube",  "type": "main", "index": 0 }],
+        [{ "node": "Merge YouTube",    "type": "main", "index": 1 }]
+      ]
+    },
+    "Subir a YouTube":    { "main": [[{ "node": "Guardar URL YouTube", "type": "main", "index": 0 }]] },
+    "Guardar URL YouTube":{ "main": [[{ "node": "Merge YouTube",       "type": "main", "index": 0 }]] },
+    "Merge YouTube":      { "main": [[{ "node": "¿TikTok?",            "type": "main", "index": 0 }]] },
+
+    "¿TikTok?": {
+      "main": [
+        [{ "node": "TikTok — Publicar", "type": "main", "index": 0 }],
+        [{ "node": "Merge TikTok",      "type": "main", "index": 1 }]
+      ]
+    },
+    "TikTok — Publicar":  { "main": [[{ "node": "Guardar URL TikTok", "type": "main", "index": 0 }]] },
+    "Guardar URL TikTok": { "main": [[{ "node": "Merge TikTok",       "type": "main", "index": 0 }]] },
+    "Merge TikTok":       { "main": [[{ "node": "¿Instagram?",        "type": "main", "index": 0 }]] },
+
+    "¿Instagram?": {
+      "main": [
+        [{ "node": "Instagram — Crear media", "type": "main", "index": 0 }],
+        [{ "node": "Merge Instagram",         "type": "main", "index": 1 }]
+      ]
+    },
+    "Instagram — Crear media": { "main": [[{ "node": "Instagram — Publicar", "type": "main", "index": 0 }]] },
+    "Instagram — Publicar":    { "main": [[{ "node": "Guardar URL Instagram", "type": "main", "index": 0 }]] },
+    "Guardar URL Instagram":   { "main": [[{ "node": "Merge Instagram",       "type": "main", "index": 0 }]] },
+    "Merge Instagram":         { "main": [[{ "node": "¿Threads?",             "type": "main", "index": 0 }]] },
+
+    "¿Threads?": {
+      "main": [
+        [{ "node": "Threads — Crear",  "type": "main", "index": 0 }],
+        [{ "node": "Merge Threads",    "type": "main", "index": 1 }]
+      ]
+    },
+    "Threads — Crear":   { "main": [[{ "node": "Threads — Publicar",  "type": "main", "index": 0 }]] },
+    "Threads — Publicar":{ "main": [[{ "node": "Guardar URL Threads", "type": "main", "index": 0 }]] },
+    "Guardar URL Threads":{ "main": [[{ "node": "Merge Threads",      "type": "main", "index": 0 }]] },
+    "Merge Threads":     { "main": [[{ "node": "Marcar como publicado","type": "main", "index": 0 }]] },
+
+    "Error en workflow": { "main": [[{ "node": "Marcar error", "type": "main", "index": 0 }]] }
+  },
+
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true, "callerPolicy": "workflowsFromSameOwner" },
+  "staticData": null,
+  "tags": [],
+  "pinData": {}
+}
