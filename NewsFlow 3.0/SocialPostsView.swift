@@ -3,7 +3,6 @@ import SwiftUI
 struct SocialPostsView: View {
     @StateObject var viewModel = SocialPostsViewModel.shared
     @StateObject var agentViewModel = ContentDailyViewModel.shared
-    @State private var showingPostReview = false
     @State private var selectedNetwork: SocialNetwork? = nil
     @State private var selectedTab = 0
     @State private var sourceFilter: SourceFilter = .manual
@@ -65,9 +64,6 @@ struct SocialPostsView: View {
                 }
             }
             .navigationTitle("Publicaciones")
-            .sheet(isPresented: $showingPostReview) {
-                PostReviewView(viewModel: viewModel)
-            }
             .sheet(isPresented: Binding(
                 get: { viewModel.isCreatingPost },
                 set: { viewModel.isCreatingPost = $0 }
@@ -78,6 +74,7 @@ struct SocialPostsView: View {
                 AgentTriggerView(viewModel: agentViewModel)
             }
             .toolbar {
+                // Botón recargar
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         Task {
@@ -91,15 +88,37 @@ struct SocialPostsView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if sourceFilter == .manual {
-                        Button {
-                            showingPostReview = !viewModel.postsForReview.isEmpty
+
+                // Filtro de red social (solo en pestaña Manual)
+                if sourceFilter == .manual {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            Button {
+                                selectedNetwork = nil
+                            } label: {
+                                Label("Todas", systemImage: selectedNetwork == nil ? "checkmark" : "network")
+                            }
+                            Divider()
+                            ForEach(SocialNetwork.allCases) { network in
+                                Button {
+                                    selectedNetwork = network
+                                } label: {
+                                    Label(
+                                        network.rawValue,
+                                        systemImage: selectedNetwork == network ? "checkmark" : "circle"
+                                    )
+                                }
+                            }
                         } label: {
-                            Image(systemName: "bell.badge")
+                            Image(systemName: selectedNetwork == nil
+                                  ? "line.3.horizontal.decrease"
+                                  : "line.3.horizontal.decrease.circle.fill")
+                                .foregroundColor(selectedNetwork == nil ? .primary : .blue)
                         }
                     }
                 }
+
+                // Crear publicación / generar con IA
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         if sourceFilter == .manual {
@@ -118,17 +137,11 @@ struct SocialPostsView: View {
         }
     }
 
-    // MARK: - Manual posts (sin cambios respecto al original)
+    // MARK: - Manual posts
 
     @ViewBuilder
     private var manualPostsContent: some View {
         VStack(spacing: 0) {
-            if !viewModel.postsForReview.isEmpty {
-                ReviewBanner(postCount: viewModel.postsForReview.count) {
-                    showingPostReview = true
-                }
-            }
-
             if viewModel.isLoading && viewModel.posts.isEmpty {
                 ProgressView("Cargando publicaciones...")
                     .padding()
@@ -226,32 +239,6 @@ struct SocialPostsView: View {
                 }
                 .refreshable { await viewModel.loadData() }
             }
-
-            Divider()
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Image(systemName: "line.3.horizontal.decrease")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                    Text("Filtrar por red social")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-                NetworkFilterView(selectedNetwork: $selectedNetwork)
-                    .padding(.vertical, 6)
-            }
-            .padding(.bottom, 8)
-            .background(Color(.systemBackground))
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(.systemGray5))
-                    .opacity(0.5),
-                alignment: .top
-            )
         }
     }
 
@@ -322,108 +309,6 @@ struct SocialPostsView: View {
             }
             .listStyle(.plain)
             .refreshable { await agentViewModel.loadPosts() }
-        }
-    }
-}
-
-// Banner para mostrar publicaciones pendientes de revisión
-struct ReviewBanner: View {
-    let postCount: Int
-    let action: () -> Void
-    
-    var body: some View {
-        VStack {
-            Button(action: action) {
-                HStack {
-                    Image(systemName: "bell.fill")
-                        .foregroundColor(.white)
-                    
-                    Text("\(postCount) publicacion\(postCount == 1 ? "" : "es") \(postCount == 1 ? "lista" : "listas") para revisar")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.white.opacity(0.7))
-                }
-                .padding()
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.blue, .purple]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(12)
-                .shadow(radius: 2)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-    }
-}
-
-// Vista para filtrar por red social
-struct NetworkFilterView: View {
-    @Binding var selectedNetwork: SocialNetwork?
-    
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                FilterButton(
-                    title: "Todas",
-                    icon: "network",
-                    isSelected: selectedNetwork == nil,
-                    action: { selectedNetwork = nil }
-                )
-                
-                ForEach(SocialNetwork.allCases) { network in
-                    FilterButton(
-                        title: network.rawValue,
-                        icon: networkIcon(for: network),
-                        isSelected: selectedNetwork == network,
-                        action: { selectedNetwork = network }
-                    )
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-    
-    // Función para obtener el icono adecuado para cada red social
-    private func networkIcon(for network: SocialNetwork) -> String {
-        switch network {
-        case .linkedin:
-            return "link.circle.fill"
-        case .twitter:
-            return "quote.bubble.fill"
-        }
-    }
-}
-
-// Botón para filtros
-struct FilterButton: View {
-    let title: String
-    let icon: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.caption)
-                
-                Text(title)
-                    .font(.callout)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color.blue : Color.gray.opacity(0.2))
-            .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(16)
-            .shadow(color: isSelected ? Color.blue.opacity(0.3) : Color.clear, radius: 2)
         }
     }
 }

@@ -5,201 +5,57 @@ struct SocialPostDetailView: View {
     @ObservedObject var viewModel: SocialPostsViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var isProcessing = false
+    @State private var showRejectConfirm = false
     @State private var showPublishConfirm = false
     @State private var publishSuccess = false
     @State private var publishError: String? = nil
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Cabecera con información general
+
+                // Cabecera: red social + fecha + slot
                 VStack(alignment: .leading, spacing: 10) {
-                    // Red social y estado
                     HStack {
-                        Label(post.redSocial, systemImage: "network")
-                            .font(.headline)
-                        
+                        NetworkBadge(network: post.redSocialEnum)
                         Spacer()
-                        
                         PostStatusBadge(post: post)
                     }
-                    
-                    // Fecha programada
-                    HStack {
+
+                    HStack(spacing: 6) {
                         Image(systemName: "calendar")
                             .foregroundColor(.secondary)
-                        
-                        Text("Fecha de publicación:")
+                        Text("Publicación:")
                             .foregroundColor(.secondary)
-                        
                         Text(post.formattedPublishDate)
                             .fontWeight(.medium)
                     }
                     .font(.subheadline)
-                    
-                    // Slot programado si existe
+
                     if let slot = post.slotProgramado {
-                        HStack {
+                        HStack(spacing: 6) {
                             Image(systemName: "clock")
                                 .foregroundColor(.secondary)
-                            
                             Text("Slot:")
                                 .foregroundColor(.secondary)
-                            
                             Text(slot)
                                 .fontWeight(.medium)
                         }
                         .font(.subheadline)
                     }
-                    
+
                     Divider()
                 }
-                .padding(.bottom, 10)
-                
-                // Previsualización de la publicación (como se verá en la red social)
-                SocialMediaPreview(post: post)
-                
-                // Botones de acción
-                VStack(spacing: 12) {
-                    if isProcessing {
-                        // Indicador de carga
-                        ProgressView("Procesando...")
-                            .padding()
-                    } else {
-                        // Nuevo diseño de botones más visual
-                        HStack(spacing: 30) {
-                            // Botón para rechazar - aspa roja
-                            Button {
-                                Task {
-                                    // Evitar múltiples acciones
-                                    isProcessing = true
-                                    
-                                    // Limpiar estados
-                                    viewModel.isEditingPost = false
-                                    viewModel.currentEditPost = nil
-                                    
-                                    // Ejecutar la acción
-                                    await viewModel.rejectPost(post: post)
-                                    
-                                    // Completado
-                                    isProcessing = false
-                                    dismiss()
-                                }
-                            } label: {
-                                VStack(spacing: 8) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.red.opacity(0.1))
-                                            .frame(width: 60, height: 60)
-                                        
-                                        Image(systemName: "xmark")
-                                            .font(.title)
-                                            .foregroundColor(.red)
-                                    }
-                                    
-                                    Text("Rechazar")
-                                        .font(.caption)
-                                        .foregroundColor(.red)
-                                }
-                            }
-                            .disabled(viewModel.isLoading || isProcessing)
-                            
-                            // Botón para editar - lápiz
-                            Button {
-                                // Evitar múltiples acciones
-                                guard !isProcessing else { return }
-                                
-                                isProcessing = true
-                                
-                                // Configurar edición - esto utilizará el mejor flujo en el ViewModel
-                                viewModel.startEditing(post: post)
-                                
-                                // Restaurar el estado después de un momento
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    isProcessing = false
-                                }
-                            } label: {
-                                VStack(spacing: 8) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.orange.opacity(0.1))
-                                            .frame(width: 60, height: 60)
-                                        
-                                        Image(systemName: "pencil")
-                                            .font(.title)
-                                            .foregroundColor(.orange)
-                                    }
-                                    
-                                    Text("Editar")
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                }
-                            }
-                            .disabled(viewModel.isLoading || isProcessing)
-                            
-                            // Botón Publicar ahora (aprobado pero no publicado)
-                            if post.aprobado && !post.publicado {
-                                Button {
-                                    showPublishConfirm = true
-                                } label: {
-                                    VStack(spacing: 8) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Color.blue.opacity(0.1))
-                                                .frame(width: 60, height: 60)
-                                            Image(systemName: "paperplane.fill")
-                                                .font(.title2)
-                                                .foregroundColor(.blue)
-                                        }
-                                        Text("Publicar\nahora")
-                                            .font(.caption)
-                                            .multilineTextAlignment(.center)
-                                            .foregroundColor(.blue)
-                                    }
-                                }
-                                .disabled(viewModel.isLoading || isProcessing)
-                            }
 
-                        // Botón para aprobar - check verde (solo mostrar si no está aprobado)
-                            if !post.aprobado {
-                                Button {
-                                    Task {
-                                        // Evitar múltiples acciones
-                                        isProcessing = true
-                                        
-                                        // Limpiar estados
-                                        viewModel.isEditingPost = false
-                                        viewModel.currentEditPost = nil
-                                        
-                                        // Ejecutar la acción
-                                        await viewModel.approvePost(post: post)
-                                        
-                                        // Completado
-                                        isProcessing = false
-                                        dismiss()
-                                    }
-                                } label: {
-                                    VStack(spacing: 8) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Color.green.opacity(0.1))
-                                                .frame(width: 60, height: 60)
-                                            
-                                            Image(systemName: "checkmark")
-                                                .font(.title)
-                                                .foregroundColor(.green)
-                                        }
-                                        
-                                        Text("Aprobar")
-                                            .font(.caption)
-                                            .foregroundColor(.green)
-                                    }
-                                }
-                                .disabled(viewModel.isLoading || isProcessing)
-                            }
-                        }
-                        .padding(.vertical, 10)
-                    }
+                // Previsualización
+                SocialMediaPreview(post: post)
+
+                // Zona de acciones
+                if isProcessing {
+                    ProgressView("Procesando…")
+                        .padding(.vertical, 24)
+                } else {
+                    actionButtons
                 }
             }
             .padding()
@@ -208,6 +64,26 @@ struct SocialPostDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $viewModel.isEditingPost) {
             EditPostView(viewModel: viewModel)
+        }
+        // Confirmación de rechazo — destructiva, explica que elimina
+        .confirmationDialog(
+            "Rechazar esta publicación",
+            isPresented: $showRejectConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Rechazar y eliminar", role: .destructive) {
+                Task {
+                    isProcessing = true
+                    viewModel.isEditingPost = false
+                    viewModel.currentEditPost = nil
+                    await viewModel.rejectPost(post: post)
+                    isProcessing = false
+                    dismiss()
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("El post se eliminará de Airtable y no se podrá recuperar.")
         }
         // Confirmación antes de publicar
         .confirmationDialog(
@@ -221,11 +97,8 @@ struct SocialPostDetailView: View {
                     publishError = nil
                     let ok = await viewModel.publishNow(post: post)
                     isProcessing = false
-                    if ok {
-                        publishSuccess = true
-                    } else {
-                        publishError = viewModel.error ?? "Error desconocido al publicar"
-                    }
+                    if ok { publishSuccess = true }
+                    else  { publishError = viewModel.error ?? "Error desconocido al publicar" }
                 }
             }
             Button("Cancelar", role: .cancel) {}
@@ -241,7 +114,7 @@ struct SocialPostDetailView: View {
         } message: {
             Text(publishError ?? "")
         }
-        // Feedback de éxito
+        // Overlay de éxito
         .overlay {
             if publishSuccess {
                 PublishSuccessOverlay(redSocial: post.redSocial) {
@@ -251,53 +124,132 @@ struct SocialPostDetailView: View {
             }
         }
     }
+
+    // MARK: - Botones de acción
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        VStack(spacing: 12) {
+
+            // Acción principal: Aprobar (solo si no está aprobado)
+            if !post.aprobado {
+                Button {
+                    Task {
+                        isProcessing = true
+                        viewModel.isEditingPost = false
+                        viewModel.currentEditPost = nil
+                        await viewModel.approvePost(post: post)
+                        isProcessing = false
+                        dismiss()
+                    }
+                } label: {
+                    Label("Aprobar publicación", systemImage: "checkmark.circle.fill")
+                        .frame(maxWidth: .infinity)
+                        .font(.body.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+                .controlSize(.large)
+                .disabled(viewModel.isLoading)
+            }
+
+            // Publicar ahora (aprobado pero no publicado)
+            if post.aprobado && !post.publicado {
+                Button { showPublishConfirm = true } label: {
+                    Label("Publicar ahora", systemImage: "paperplane.fill")
+                        .frame(maxWidth: .infinity)
+                        .font(.body.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(post.redSocialEnum == .linkedin
+                      ? Color(red: 0.04, green: 0.4, blue: 0.76)
+                      : Color.primary)
+                .controlSize(.large)
+                .disabled(viewModel.isLoading)
+            }
+
+            // Acciones secundarias: Editar | Rechazar
+            HStack(spacing: 12) {
+                Button {
+                    guard !isProcessing else { return }
+                    isProcessing = true
+                    viewModel.startEditing(post: post)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        isProcessing = false
+                    }
+                } label: {
+                    Label("Editar", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(viewModel.isLoading)
+
+                Button(role: .destructive) {
+                    showRejectConfirm = true
+                } label: {
+                    Label("Rechazar", systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .tint(.red)
+                .disabled(viewModel.isLoading)
+            }
+        }
+        .padding(.top, 4)
+    }
 }
 
-// Vista para previsualizar cómo se verá la publicación en la red social
+// MARK: - SocialMediaPreview
+
 struct SocialMediaPreview: View {
     let post: SocialPost
-    
-    var networkIcon: String {
-        switch post.redSocialEnum {
-        case .linkedin: return "link.circle.fill"
-        case .twitter:  return "quote.bubble.fill"
-        }
+
+    private var isLinkedIn: Bool { post.redSocialEnum == .linkedin }
+
+    private var networkColor: Color {
+        isLinkedIn
+            ? Color(red: 0.04, green: 0.4, blue: 0.76)   // #0A66C2
+            : Color.primary
     }
 
-    var networkColor: Color {
-        switch post.redSocialEnum {
-        case .linkedin: return .blue
-        case .twitter:  return .cyan
-        }
-    }
-    
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Cabecera que simula la red social
-            HStack {
-                // Avatar de usuario
-                Image(systemName: "person.circle.fill")
-                    .font(.title)
-                    .foregroundColor(.secondary)
-                
-                VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 12) {
+
+            // Cabecera: avatar + nombre + logo de plataforma
+            HStack(alignment: .top, spacing: 10) {
+                // Avatar con iniciales
+                ZStack {
+                    Circle()
+                        .fill(networkColor)
+                        .frame(width: 46, height: 46)
+                    Text("JL")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                // Nombre y fecha
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Jorge Lorenzo")
-                        .font(.headline)
-                    Text("\(post.formattedPublishDate) • \(post.redSocial)")
+                        .font(.subheadline.weight(.semibold))
+                    Text(post.formattedPublishDate)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
-                // Logo de la red social
-                Image(systemName: networkIcon)
-                    .foregroundColor(networkColor)
+
+                // Logo de la plataforma
+                platformLogo
             }
-            
-            // Contenido de la publicación
+
+            Divider()
+
+            // Texto del post
             Text(post.textoEnriquecido.isEmpty ? post.texto : post.textoEnriquecido)
-                .padding(.vertical, 10)
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
 
             // Media adjunta
             if post.hasMedia, let urlString = post.mediaUrl, let url = URL(string: urlString) {
@@ -310,7 +262,7 @@ struct SocialMediaPreview: View {
                                 .scaledToFit()
                                 .cornerRadius(8)
                         case .failure:
-                            mediaErrorPlaceholder(icon: "photo", label: "No se pudo cargar la imagen")
+                            mediaPlaceholder(icon: "photo", label: "No se pudo cargar la imagen")
                         case .empty:
                             ProgressView().frame(maxWidth: .infinity).padding()
                         @unknown default:
@@ -318,7 +270,7 @@ struct SocialMediaPreview: View {
                         }
                     }
                 case .video:
-                    mediaErrorPlaceholder(icon: "video.fill", label: "Vídeo adjunto")
+                    mediaPlaceholder(icon: "video.fill", label: "Vídeo adjunto")
                         .overlay(alignment: .topTrailing) {
                             Link(destination: url) {
                                 Label("Abrir", systemImage: "arrow.up.right.square")
@@ -336,45 +288,65 @@ struct SocialMediaPreview: View {
             // Hashtags
             if !post.hashtags.isEmpty {
                 Text(post.hashtags)
-                    .foregroundColor(.blue)
+                    .foregroundColor(networkColor)
                     .font(.subheadline)
             }
-            
+
+            Divider()
+
             // Botonera simulada de la red social
-            HStack(spacing: 20) {
+            HStack(spacing: 24) {
                 Image(systemName: "hand.thumbsup")
                     .foregroundColor(.secondary)
-                
                 Image(systemName: "bubble.right")
                     .foregroundColor(.secondary)
-                
                 Image(systemName: "arrow.2.squarepath")
                     .foregroundColor(.secondary)
-                
                 Spacer()
-                
                 Image(systemName: "square.and.arrow.up")
                     .foregroundColor(.secondary)
             }
-            .padding(.top, 8)
+            .font(.callout)
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cornerRadius(14)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(networkColor.opacity(0.4), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(networkColor.opacity(0.35), lineWidth: 1.5)
         )
     }
 
+    // Logo propio de cada plataforma
     @ViewBuilder
-    private func mediaErrorPlaceholder(icon: String, label: String) -> some View {
+    private var platformLogo: some View {
+        if isLinkedIn {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(red: 0.04, green: 0.4, blue: 0.76))
+                    .frame(width: 34, height: 34)
+                Text("in")
+                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .italic()
+                    .foregroundColor(.white)
+            }
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.primary)
+                    .frame(width: 34, height: 34)
+                Text("𝕏")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(Color(.systemBackground))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func mediaPlaceholder(icon: String, label: String) -> some View {
         HStack {
-            Image(systemName: icon)
-                .foregroundColor(.secondary)
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Image(systemName: icon).foregroundColor(.secondary)
+            Text(label).font(.caption).foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding()
@@ -392,20 +364,16 @@ struct PublishSuccessOverlay: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.45).ignoresSafeArea()
-
             VStack(spacing: 20) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundColor(.green)
-
                 Text("¡Publicado!")
                     .font(.title.bold())
                     .foregroundColor(.white)
-
                 Text("Tu post ya está en \(redSocial)")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.85))
-
                 Button("Cerrar") { onDismiss() }
                     .buttonStyle(.borderedProminent)
                     .tint(.white)
@@ -421,17 +389,19 @@ struct PublishSuccessOverlay: View {
     }
 }
 
+// MARK: - Preview
+
 #Preview {
     NavigationStack {
         SocialPostDetailView(
             post: SocialPost.nuevo(
-                texto: "Post de ejemplo para previsualización en pantalla de detalle",
+                texto: "El liderazgo en la era digital exige claridad, velocidad y la capacidad de adaptarse sin perder el foco en lo esencial.",
                 redSocial: .linkedin,
                 fecha: Date().addingTimeInterval(86400),
-                tematica: "IA",
-                objetivo: "Interesante"
+                tematica: "Liderazgo",
+                objetivo: "Reflexión"
             ),
             viewModel: SocialPostsViewModel.shared
         )
     }
-} 
+}
