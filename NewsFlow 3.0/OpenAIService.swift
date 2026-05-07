@@ -4,7 +4,7 @@ import Foundation
 class OpenAIService {
     static let shared = OpenAIService()
 
-    private let apiKey  = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
+    private let apiKey  = Secrets.openAIKey
     private let model   = "gpt-4o-mini"
     private let baseURL = "https://api.openai.com/v1/chat/completions"
 

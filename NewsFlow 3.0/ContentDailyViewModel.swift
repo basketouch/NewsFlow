@@ -13,7 +13,7 @@ class ContentDailyViewModel: ObservableObject {
 
     private let supabaseURL = SupabaseConfig.projectURL
     private let supabaseKey = SupabaseConfig.anonKey
-    private let openAIKey  = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
+    private let openAIKey  = Secrets.openAIKey
     private let openAIURL  = "https://api.openai.com/v1/chat/completions"
 
     // MARK: - Load
