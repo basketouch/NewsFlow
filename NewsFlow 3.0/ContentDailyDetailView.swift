@@ -6,10 +6,7 @@ struct ContentDailyDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedPlatform = 0
-    @State private var editingLinkedin = false
-    @State private var editingInstagram = false
-    @State private var editingTwitter = false
-    @State private var editingTiktok = false
+    @State private var isEditingText = false          // único flag de edición
     @State private var showDeleteConfirm = false
     @State private var copiedPlatform: String? = nil
 
@@ -18,33 +15,12 @@ struct ContentDailyDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-
-                // Cabecera
                 headerSection
-
-                // Selector de plataforma
                 platformPicker
-
-                // Contenido de la plataforma seleccionada
                 platformContent
-
                 Divider().padding(.horizontal)
-
-                // Hashtags
-                if !post.hashtags.isEmpty {
-                    hashtagsSection
-                }
-
-                // Botón eliminar
-                Button(role: .destructive) {
-                    showDeleteConfirm = true
-                } label: {
-                    Label("Eliminar post", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-                .padding(.bottom, 24)
+                if !post.hashtags.isEmpty { hashtagsSection }
+                deleteButton
             }
             .padding(.top, 16)
         }
@@ -59,17 +35,18 @@ struct ContentDailyDetailView: View {
                 .fontWeight(.semibold)
             }
         }
+        .onChange(of: selectedPlatform) { _ in
+            // Al cambiar de plataforma salimos del modo edición
+            isEditingText = false
+        }
         .confirmationDialog("¿Eliminar este post?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Eliminar", role: .destructive) {
-                Task {
-                    await viewModel.deletePost(post)
-                    dismiss()
-                }
+                Task { await viewModel.deletePost(post); dismiss() }
             }
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Header
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -80,9 +57,7 @@ struct ContentDailyDetailView: View {
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(Color.purple.opacity(0.1))
                     .cornerRadius(6)
-
                 Spacer()
-
                 Text(post.formattedDate)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -99,10 +74,9 @@ struct ContentDailyDetailView: View {
                 }
             }
 
-            // Status badge
             HStack(spacing: 4) {
                 Circle()
-                    .fill(statusColor)
+                    .fill(statusSwiftColor)
                     .frame(width: 7, height: 7)
                 Text(post.statusLabel)
                     .font(.caption)
@@ -117,6 +91,8 @@ struct ContentDailyDetailView: View {
         .padding(.horizontal)
     }
 
+    // MARK: - Platform picker
+
     private var platformPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
@@ -127,14 +103,11 @@ struct ContentDailyDetailView: View {
                         if available { selectedPlatform = index }
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: platformIcon(name))
-                                .font(.caption)
-                            Text(name)
-                                .font(.callout)
+                            Image(systemName: platformIcon(name)).font(.caption)
+                            Text(name).font(.callout)
                             if published {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .font(.caption2)
-                                    .foregroundColor(.green)
+                                    .font(.caption2).foregroundColor(.green)
                             }
                         }
                         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -150,123 +123,79 @@ struct ContentDailyDetailView: View {
         }
     }
 
+    // MARK: - Platform content
+
     @ViewBuilder
     private var platformContent: some View {
         let name = platforms[selectedPlatform]
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
 
-            // Score
+            // Score — tarjeta prominente
             if let score = platformScore(name) {
-                HStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .font(.caption)
-                        .foregroundColor(.yellow)
-                    Text("Score: \(score)/10")
-                        .font(.caption.weight(.semibold))
-                    scoreBar(score)
-                }
-                .padding(.horizontal)
+                scoreCard(score)
+                    .padding(.horizontal)
             }
 
-            // Texto editable
+            // Texto: modo lectura o edición
             VStack(alignment: .leading, spacing: 6) {
+                // Cabecera de sección con toggle edición
                 HStack {
-                    Text("Texto")
+                    Text(name == "TikTok" ? "Script" : "Texto")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(.secondary)
                     Spacer()
-                    if name == "TikTok" {
-                        Label("Script", systemImage: "video.fill")
-                            .font(.caption)
-                            .foregroundColor(.purple)
-                    }
-                }
-                .padding(.horizontal)
-
-                TextEditor(text: bindingForPlatform(name))
-                    .font(.body)
-                    .frame(minHeight: name == "TikTok" ? 200 : 150)
-                    .padding(10)
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-
-                // Contador de caracteres
-                HStack {
-                    Spacer()
-                    Text("\(textForPlatform(name).count) chars")
-                        .font(.caption2)
-                        .foregroundColor(charLimitExceeded(name) ? .red : .secondary)
-                    if name == "Twitter" {
-                        Text("/ 280 max")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.horizontal)
-            }
-
-            // Acciones
-            HStack(spacing: 12) {
-                // Copiar
-                Button {
-                    UIPasteboard.general.string = textForPlatform(name)
-                    withAnimation { copiedPlatform = name }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        withAnimation { copiedPlatform = nil }
-                    }
-                } label: {
-                    Label(
-                        copiedPlatform == name ? "Copiado" : "Copiar",
-                        systemImage: copiedPlatform == name ? "checkmark" : "doc.on.doc"
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(copiedPlatform == name ? .green : .primary)
-
-                // Publicar (LinkedIn directo, resto solo copia)
-                if name == "LinkedIn" {
                     Button {
-                        Task {
-                            await viewModel.markPublished(post, platform: "linkedin")
-                            if let updated = viewModel.posts.first(where: { $0.id == post.id }) {
-                                post = updated
-                            }
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isEditingText.toggle()
                         }
                     } label: {
                         Label(
-                            platformPublished(name) ? "Publicado" : "Marcar publicado",
-                            systemImage: platformPublished(name) ? "checkmark.circle.fill" : "arrow.up.circle"
+                            isEditingText ? "Listo" : "Editar",
+                            systemImage: isEditingText ? "checkmark.circle.fill" : "pencil"
                         )
-                        .frame(maxWidth: .infinity)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(isEditingText ? .green : .secondary)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(platformPublished(name) ? .green : platformColor(name))
-                    .disabled(platformPublished(name))
+                }
+                .padding(.horizontal)
+
+                if isEditingText {
+                    // Modo edición — TextEditor
+                    TextEditor(text: bindingForPlatform(name))
+                        .font(.body)
+                        .frame(minHeight: name == "TikTok" ? 200 : 150)
+                        .padding(10)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
                 } else {
-                    Button {
-                        UIPasteboard.general.string = textForPlatform(name)
-                        Task {
-                            await viewModel.markPublished(post, platform: name.lowercased())
-                            if let updated = viewModel.posts.first(where: { $0.id == post.id }) {
-                                post = updated
-                            }
+                    // Modo lectura — Text seleccionable
+                    Text(textForPlatform(name))
+                        .font(.body)
+                        .textSelection(.enabled)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                }
+
+                // Contador de caracteres (solo cuando edita o en Twitter)
+                if isEditingText || name == "Twitter" {
+                    HStack {
+                        Spacer()
+                        Text("\(textForPlatform(name).count) chars")
+                            .font(.caption2)
+                            .foregroundColor(charLimitExceeded(name) ? .red : .secondary)
+                        if name == "Twitter" {
+                            Text("/ 280 max")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
                         }
-                        withAnimation { copiedPlatform = name }
-                    } label: {
-                        Label(
-                            platformPublished(name) ? "Publicado" : "Copiar y marcar",
-                            systemImage: platformPublished(name) ? "checkmark.circle.fill" : "square.and.arrow.up"
-                        )
-                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(platformPublished(name) ? .green : platformColor(name))
-                    .disabled(platformPublished(name))
+                    .padding(.horizontal)
                 }
             }
-            .padding(.horizontal)
 
             // Instagram image prompt
             if name == "Instagram", let prompt = post.instagramImagePrompt, !prompt.isEmpty {
@@ -284,8 +213,103 @@ struct ContentDailyDetailView: View {
                 .cornerRadius(10)
                 .padding(.horizontal)
             }
+
+            // Acciones — patrón unificado
+            actionButtons(for: name)
+                .padding(.horizontal)
         }
     }
+
+    // MARK: - Action buttons (patrón unificado)
+
+    @ViewBuilder
+    private func actionButtons(for name: String) -> some View {
+        let alreadyPublished = platformPublished(name)
+
+        VStack(spacing: 10) {
+            // Copiar texto — siempre disponible
+            Button {
+                UIPasteboard.general.string = textForPlatform(name)
+                withAnimation { copiedPlatform = name }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    withAnimation { copiedPlatform = nil }
+                }
+            } label: {
+                Label(
+                    copiedPlatform == name ? "¡Copiado!" : "Copiar texto",
+                    systemImage: copiedPlatform == name ? "checkmark" : "doc.on.doc"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(copiedPlatform == name ? .green : .primary)
+            .controlSize(.large)
+
+            // Marcar publicado — mismo patrón en todas las plataformas
+            Button {
+                // Para todas las plataformas: marcar como publicado
+                // (LinkedIn además enviará via n8n cuando esté implementado)
+                Task {
+                    await viewModel.markPublished(post, platform: name.lowercased())
+                    if let updated = viewModel.posts.first(where: { $0.id == post.id }) {
+                        post = updated
+                    }
+                }
+            } label: {
+                Label(
+                    alreadyPublished ? "Publicado en \(name)" : "Marcar como publicado",
+                    systemImage: alreadyPublished ? "checkmark.circle.fill" : "arrow.up.circle"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(alreadyPublished ? .green : platformColor(name))
+            .controlSize(.large)
+            .disabled(alreadyPublished)
+        }
+    }
+
+    // MARK: - Score card
+
+    private func scoreCard(_ score: Int) -> some View {
+        let color = scoreSwiftColor(score)
+        return HStack(spacing: 16) {
+            // Número grande
+            VStack(spacing: 2) {
+                Text("\(score)")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundColor(color)
+                Text("/ 10")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 60)
+
+            // Barra + etiqueta
+            VStack(alignment: .leading, spacing: 6) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.gray.opacity(0.15))
+                        Capsule()
+                            .fill(color)
+                            .frame(width: geo.size.width * CGFloat(score) / 10)
+                    }
+                }
+                .frame(height: 8)
+
+                Text("Score IA")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(color.opacity(0.08))
+        .cornerRadius(12)
+    }
+
+    // MARK: - Hashtags
 
     private var hashtagsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -293,7 +317,6 @@ struct ContentDailyDetailView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundColor(.secondary)
                 .padding(.horizontal)
-
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(post.hashtags, id: \.self) { tag in
@@ -310,14 +333,28 @@ struct ContentDailyDetailView: View {
         }
     }
 
+    // MARK: - Delete
+
+    private var deleteButton: some View {
+        Button(role: .destructive) {
+            showDeleteConfirm = true
+        } label: {
+            Label("Eliminar post", systemImage: "trash")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .padding(.horizontal)
+        .padding(.bottom, 24)
+    }
+
     // MARK: - Helpers
 
     private func platformAvailable(_ name: String) -> Bool {
         switch name {
-        case "LinkedIn":  return post.linkedinPost != nil && !post.linkedinPost!.isEmpty
-        case "Instagram": return post.instagramPost != nil && !post.instagramPost!.isEmpty
-        case "Twitter":   return post.twitterPost != nil && !post.twitterPost!.isEmpty
-        case "TikTok":    return post.tiktokScript != nil && !post.tiktokScript!.isEmpty
+        case "LinkedIn":  return !(post.linkedinPost ?? "").isEmpty
+        case "Instagram": return !(post.instagramPost ?? "").isEmpty
+        case "Twitter":   return !(post.twitterPost ?? "").isEmpty
+        case "TikTok":    return !(post.tiktokScript ?? "").isEmpty
         default:          return false
         }
     }
@@ -372,15 +409,15 @@ struct ContentDailyDetailView: View {
 
     private func platformColor(_ name: String) -> Color {
         switch name {
-        case "LinkedIn":  return .blue
+        case "LinkedIn":  return Color(red: 0.04, green: 0.4, blue: 0.76)
         case "Instagram": return .pink
-        case "Twitter":   return Color(red: 0.11, green: 0.63, blue: 0.95)
+        case "Twitter":   return Color.primary
         case "TikTok":    return .purple
         default:          return .gray
         }
     }
 
-    private var statusColor: Color {
+    private var statusSwiftColor: Color {
         switch post.status {
         case "pending_review":    return .orange
         case "published_partial": return .blue
@@ -389,15 +426,7 @@ struct ContentDailyDetailView: View {
         }
     }
 
-    private func scoreBar(_ score: Int) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.gray.opacity(0.2))
-                Capsule()
-                    .fill(score >= 8 ? Color.green : score >= 6 ? Color.orange : Color.red)
-                    .frame(width: geo.size.width * CGFloat(score) / 10)
-            }
-        }
-        .frame(width: 80, height: 6)
+    private func scoreSwiftColor(_ score: Int) -> Color {
+        score >= 8 ? .green : score >= 6 ? .orange : .red
     }
 }
