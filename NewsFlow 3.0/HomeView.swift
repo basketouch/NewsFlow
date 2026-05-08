@@ -41,11 +41,9 @@ struct HomeTabView: View {
     @Binding var selectedTab: Int
     @StateObject private var savedViewModel  = SupabaseArticlesViewModel.shared
     @StateObject private var socialViewModel = SocialPostsViewModel.shared
-    @State private var showArchivo    = false
     @State private var showCalendario = false
     @State private var showNewsletter = false
     @State private var showVideos     = false
-    @State private var showApproval   = false
 
     private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
 
@@ -81,20 +79,6 @@ struct HomeTabView: View {
                              title: "Newsletter", subtitle: "INSIDE Life") {
                         selectedTab = 3
                     }
-                    HomeTile(icon: "archivebox",
-                             color: Color(red: 0.18, green: 0.62, blue: 0.47),
-                             title: "Archivo", subtitle: "Historial guardado") {
-                        showArchivo = true
-                    }
-                    HomeTile(
-                        icon: "checkmark.circle",
-                        color: Color(red: 0.55, green: 0.20, blue: 0.90),
-                        title: "Aprobar",
-                        subtitle: "Revisa las noticias de hoy",
-                        badge: savedViewModel.pendingCount > 0 ? savedViewModel.pendingCount : nil
-                    ) {
-                        showApproval = true
-                    }
                     HomeTile(icon: "calendar",
                              color: Color(red: 0.85, green: 0.47, blue: 0.02),
                              title: "Calendario", subtitle: "Planifica tus publicaciones") {
@@ -116,20 +100,6 @@ struct HomeTabView: View {
             .padding(.bottom, 20)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .task {
-            await savedViewModel.loadPendingArticles()
-        }
-        .sheet(isPresented: $showArchivo) {
-            NavigationStack {
-                ArchivoView(viewModel: savedViewModel)
-                    .navigationTitle("Archivo")
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Cerrar") { showArchivo = false }
-                        }
-                    }
-            }
-        }
         .sheet(isPresented: $showCalendario) {
             NavigationStack {
                 SocialPostsCalendarView(viewModel: socialViewModel)
@@ -142,16 +112,6 @@ struct HomeTabView: View {
         }
         .sheet(isPresented: $showVideos) {
             VideosView()
-        }
-        .sheet(isPresented: $showApproval) {
-            NavigationStack {
-                ApprovalView(viewModel: savedViewModel)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Cerrar") { showApproval = false }
-                        }
-                    }
-            }
         }
         .sheet(isPresented: $showNewsletter) {
             SafariView(

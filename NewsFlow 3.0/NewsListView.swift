@@ -12,6 +12,7 @@ struct NewsListView: View {
     @State private var n8nExpanded    = true
     @State private var urlExpanded    = true
     @State private var showAddURL     = false
+    @State private var showArchivo    = false
     @State private var selectedSource: String? = nil
 
     // MARK: Filtros
@@ -229,24 +230,21 @@ struct NewsListView: View {
             .navigationTitle("Noticias")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    HStack(spacing: 14) {
-                        Button { Task { await viewModel.loadArticlesWithRetry() } } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .disabled(viewModel.isLoading)
-
-                        Button {
-                            Task { await nlVM.regenerateDraft() }
-                        } label: {
-                            Image(systemName: "wand.and.stars")
-                                .foregroundColor(nlVM.n8nStatus.isActive ? .orange : .primary)
-                        }
-                        .disabled(nlVM.n8nStatus.isActive)
+                    Button { Task { await viewModel.loadArticlesWithRetry() } } label: {
+                        Image(systemName: "arrow.clockwise")
                     }
+                    .disabled(viewModel.isLoading)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { viewModel.showingFeedEditor = true } label: {
-                        Image(systemName: "gear")
+                    Menu {
+                        Button { showArchivo = true } label: {
+                            Label("Archivo", systemImage: "archivebox")
+                        }
+                        Button { viewModel.showingFeedEditor = true } label: {
+                            Label("Editar feeds RSS", systemImage: "gear")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -260,6 +258,17 @@ struct NewsListView: View {
             }
             .sheet(isPresented: $showAddURL) {
                 AgregarURLView(viewModel: savedVM)
+            }
+            .sheet(isPresented: $showArchivo) {
+                NavigationStack {
+                    ArchivoView(viewModel: savedVM)
+                        .navigationTitle("Archivo")
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Cerrar") { showArchivo = false }
+                            }
+                        }
+                }
             }
         }
         .onAppear {
