@@ -96,11 +96,17 @@ struct SavedArticleDetailView: View {
                         }
                         .buttonStyle(.bordered)
                     } else {
-                        Label("Sin enlace disponible", systemImage: "safari")
-                            .frame(maxWidth: .infinity)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.vertical, 8)
+                        Button {
+                            let query = article.title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                            if let url = URL(string: "https://www.google.com/search?q=\(query)") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            Label("Buscar artículo", systemImage: "magnifyingglass")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.secondary)
                     }
 
                     // Crear post RRSS
@@ -163,7 +169,8 @@ struct SavedArticleDetailView: View {
 
     private var hasRealURL: Bool {
         !article.url.isEmpty &&
-        !article.url.hasPrefix("https://insidelife.club/draft/")
+        !article.url.hasPrefix("https://insidelife.club/draft/") &&
+        URL(string: article.url) != nil
     }
 
     var sourceColor: Color {
