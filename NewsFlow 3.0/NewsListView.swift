@@ -237,6 +237,13 @@ struct NewsListView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
+                        Button {
+                            Task { await nlVM.regenerateDraft() }
+                        } label: {
+                            Label("Actualizar noticias", systemImage: "sparkles")
+                        }
+                        .disabled(nlVM.n8nStatus.isActive)
+                        Divider()
                         Button { showArchivo = true } label: {
                             Label("Archivo", systemImage: "archivebox")
                         }
@@ -244,7 +251,9 @@ struct NewsListView: View {
                             Label("Editar feeds RSS", systemImage: "gear")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: nlVM.n8nStatus.isActive
+                              ? "sparkles" : "ellipsis.circle")
+                        .foregroundColor(nlVM.n8nStatus.isActive ? .orange : .primary)
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
