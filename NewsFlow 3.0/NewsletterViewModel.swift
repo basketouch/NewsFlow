@@ -22,7 +22,7 @@ class NewsletterViewModel: ObservableObject {
     enum N8nStatus: Equatable {
         case idle
         case connecting
-        case processing(secondsLeft: Int)
+        case processing
         case done(count: Int)
         case failed(String)
 
@@ -30,7 +30,7 @@ class NewsletterViewModel: ObservableObject {
             switch self {
             case .idle:                    return ""
             case .connecting:             return "Conectando con n8n..."
-            case .processing(let s):      return s > 0 ? "Procesando noticias... ~\(s)s" : "Cargando noticias..."
+            case .processing:             return "Procesando newsletters... puede tardar unos minutos"
             case .done(let n):            return n > 0 ? "✅ \(n) noticias nuevas cargadas" : "✅ Noticias actualizadas"
             case .failed(let msg):        return "❌ \(msg)"
             }
@@ -245,29 +245,29 @@ class NewsletterViewModel: ObservableObject {
             print("🪄 n8n webhook → HTTP \(code)")
             print("🪄 n8n body → \(body)")
 
-            // Tratamos cualquier respuesta del servidor como "disparado"
-            // (n8n v2.12.3 tiene un bug que devuelve 500 aunque el workflow se ejecute)
-            // Solo fallamos si no hay respuesta (timeout) o 404 (no encontrado)
+            // Solo fallamos si 404 (webhook no existe) o sin respuesta
             let triggered = code != 404 && code != 0
             if triggered {
                 isRegeneratingDraft = false
+                n8nStatus = .processing
 
-                // Countdown 35 segundos
-                let total = 35
-                for remaining in stride(from: total, through: 1, by: -1) {
-                    n8nStatus = .processing(secondsLeft: remaining)
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                // Polling: comprobar cada 15s si llegaron artículos nuevos (máx 10 min)
+                let antes = savedVM.savedArticles.filter { $0.sourceType == "gmail" }.count
+                let maxIntentos = 40  // 40 × 15s = 10 minutos
+                var nuevas = 0
+                for _ in 0..<maxIntentos {
+                    try? await Task.sleep(nanoseconds: 15_000_000_000)
+                    await savedVM.loadSavedArticles()
+                    let ahora = savedVM.savedArticles.filter { $0.sourceType == "gmail" }.count
+                    nuevas = max(0, ahora - antes)
+                    if nuevas > 0 { break }
                 }
-                n8nStatus = .processing(secondsLeft: 0)
 
-                // Recargar y mostrar cuántas noticias nuevas hay
-                let antes = savedVM.savedArticles.count
-                await savedVM.loadSavedArticles()
-                let nuevas = max(0, savedVM.savedArticles.count - antes)
                 n8nStatus = .done(count: nuevas)
+                scheduleLocalNotification(count: nuevas)
 
-                // Limpiar después de 4 segundos
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                // Limpiar el banner después de 5 segundos
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
                 n8nStatus = .idle
             } else {
                 n8nStatus = .failed("Webhook no encontrado (404)")
@@ -360,6 +360,21 @@ class NewsletterViewModel: ObservableObject {
 
     func moveBlock(from source: IndexSet, to destination: Int) {
         extraBlocks.move(fromOffsets: source, toOffset: destination)
+    }
+
+    // MARK: - Notificación local noticias cargadas
+
+    private func scheduleLocalNotification(count: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = count > 0 ? "Noticias actualizadas" : "Actualización completada"
+        content.body  = count > 0 ? "\(count) nuevos artículos disponibles en NewsFlow" : "No hay artículos nuevos esta vez"
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "newsflow-noticias-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
     }
 
     // MARK: - Notificación local post-publicación
