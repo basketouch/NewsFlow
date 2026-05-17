@@ -524,7 +524,6 @@ struct RSSNoticiaDetailView: View {
                 VStack(spacing: 12) {
                     Button {
                         showSafari = true
-                        Task { await silentSave() }
                     } label: {
                         Label("Leer artículo completo", systemImage: "safari")
                             .frame(maxWidth: .infinity)
@@ -532,7 +531,6 @@ struct RSSNoticiaDetailView: View {
                     .buttonStyle(.bordered)
 
                     Button {
-                        Task { await silentSave() }
                         showingNewPost = true
                     } label: {
                         Label("Crear post para RRSS", systemImage: "square.and.pencil")
@@ -556,7 +554,7 @@ struct RSSNoticiaDetailView: View {
                         Button {
                             Task { await silentSave() }
                         } label: {
-                            Label("Añadir al Newsletter", systemImage: "envelope.badge")
+                            Label("Guardar artículo", systemImage: "tray.and.arrow.down")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
