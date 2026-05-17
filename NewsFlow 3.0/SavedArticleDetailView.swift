@@ -168,9 +168,7 @@ struct SavedArticleDetailView: View {
     }
 
     private var hasRealURL: Bool {
-        !article.url.isEmpty &&
-        !article.url.hasPrefix("https://insidelife.club/draft/") &&
-        URL(string: article.url) != nil
+        article.url.hasPrefix("http://") || article.url.hasPrefix("https://")
     }
 
     var sourceColor: Color {
