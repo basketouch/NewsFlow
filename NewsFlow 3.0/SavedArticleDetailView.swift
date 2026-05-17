@@ -95,18 +95,6 @@ struct SavedArticleDetailView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
-                    } else {
-                        Button {
-                            let query = article.title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-                            if let url = URL(string: "https://www.google.com/search?q=\(query)") {
-                                UIApplication.shared.open(url)
-                            }
-                        } label: {
-                            Label("Buscar artículo", systemImage: "magnifyingglass")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.secondary)
                     }
 
                     // Crear post RRSS
