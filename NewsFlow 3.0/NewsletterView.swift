@@ -448,25 +448,59 @@ struct HeroEditorSection: View {
 
     var body: some View {
         Form {
-            Section("Titular") {
-                TextField("Titular del newsletter", text: $vm.hero.titular, axis: .vertical)
-                    .lineLimit(3...5)
-            }
-            Section("Texto de entrada (lead)") {
-                TextEditor(text: $vm.hero.lead)
-                    .frame(minHeight: 100)
-            }
-            Section("Edición") {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Número").font(.caption).foregroundColor(.secondary)
-                    TextField("044", text: $vm.edicionEditada)
-                        .keyboardType(.asciiCapable)
-                        .autocorrectionDisabled()
+            Section {
+                HStack {
+                    Text("Número")
+                    Spacer()
+                    TextField("1", text: $vm.edicionEditada)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Fecha").font(.caption).foregroundColor(.secondary)
-                    TextField("15 Abril 2026", text: $vm.fechaEditada)
-                        .autocorrectionDisabled()
+                DatePicker("Fecha", selection: $vm.selectedDate, displayedComponents: .date)
+                    .environment(\.locale, Locale(identifier: "es_ES"))
+            } header: {
+                Text("Edición")
+            } footer: {
+                Text("Edición #\(vm.edicionEditada) · \(vm.fechaEditada)")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+
+            Section {
+                TextField("Titular del newsletter", text: $vm.hero.titular, axis: .vertical)
+                    .lineLimit(2...4)
+            } header: {
+                HStack {
+                    Text("Titular")
+                    Spacer()
+                    Button {
+                        vm.autoFillTitular()
+                    } label: {
+                        Label("Auto", systemImage: "arrow.clockwise")
+                            .font(.caption)
+                    }
+                }
+            }
+
+            Section {
+                TextEditor(text: $vm.hero.lead)
+                    .frame(minHeight: 120)
+            } header: {
+                HStack {
+                    Text("Texto de entrada")
+                    Spacer()
+                    Button {
+                        vm.autoFillHero()
+                    } label: {
+                        Label("Generar", systemImage: "sparkles")
+                            .font(.caption)
+                    }
+                    .disabled(vm.selectedItems.isEmpty)
+                }
+            } footer: {
+                if vm.selectedItems.isEmpty {
+                    Text("Selecciona artículos en la pestaña Artículos para auto-generar el texto de entrada.")
+                        .font(.caption).foregroundColor(.secondary)
                 }
             }
         }

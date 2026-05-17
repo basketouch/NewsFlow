@@ -9,11 +9,26 @@ class NewsletterViewModel: ObservableObject {
     // MARK: - Estado
 
     @Published var draft: NewsletterDraft? = nil
-    @Published var selectedItems: [NewsletterItem] = []   // artículos seleccionados y ordenados
+    @Published var selectedItems: [NewsletterItem] = [] {
+        didSet { autoFillHero() }
+    }
     @Published var hero = NewsletterHero.empty
-    @Published var edicionEditada: String = ""
+    @Published var edicionEditada: String = "" {
+        didSet { autoFillTitular() }
+    }
+    @Published var selectedDate: Date = Date() {
+        didSet {
+            fechaEditada = selectedDate.formattedNewsletterDate()
+            autoFillTitular()
+        }
+    }
     @Published var fechaEditada: String = ""
     @Published var extraBlocks: [NewsletterBlock] = []
+
+    private let edicionKey = "newsletterLastPublishedEdition"
+    var nextEdicionNumber: Int {
+        UserDefaults.standard.integer(forKey: edicionKey) + 1
+    }
     @Published var isLoading = false
     @Published var isRegeneratingDraft = false
     @Published var publishState: PublishState = .idle
@@ -64,19 +79,21 @@ class NewsletterViewModel: ObservableObject {
     func loadDraft() async {
         isLoading = true
         error = nil
+
+        // Edición correlativa y fecha de hoy
+        edicionEditada = String(nextEdicionNumber)
+        selectedDate   = Date()
+        fechaEditada   = Date().formattedNewsletterDate()
+
         do {
             let fetched = try await service.fetchDraft()
             draft = fetched
-            edicionEditada = fetched.edicion
-            fechaEditada   = fetched.fecha
-            // Pre-rellenar hero con valores del draft
-            if hero.titular.isEmpty {
-                hero.titular = "INSIDE Life #\(fetched.edicion) — \(fetched.fecha)"
-                hero.lead    = "Lo más relevante de la semana en IA, liderazgo, deporte y emprendimiento."
-            }
         } catch {
-            self.error = "No se pudo cargar el draft: \(error.localizedDescription)"
+            // Draft de GitHub no disponible — usamos los valores calculados
+            print("ℹ️ Draft no disponible: \(error.localizedDescription)")
         }
+
+        autoFillTitular()
         isLoading = false
     }
 
@@ -339,7 +356,12 @@ class NewsletterViewModel: ObservableObject {
                 self.error = "⚠️ \(warning)"
             }
 
-            // 5. Polling: notificar cuando la URL esté disponible en Vercel
+            // 5. Guardar edición publicada para auto-incrementar la próxima
+            if let num = Int(edicion) {
+                UserDefaults.standard.set(num, forKey: edicionKey)
+            }
+
+            // 6. Polling: notificar cuando la URL esté disponible en Vercel
             Task { await waitForDeployAndNotify(url: result.url, edicion: edicion) }
 
             publishState = .success(url: result.url)
@@ -416,6 +438,35 @@ class NewsletterViewModel: ObservableObject {
             trigger: nil  // entregar inmediatamente
         )
         UNUserNotificationCenter.current().add(request)
+    }
+
+    // MARK: - Auto-relleno de cabecera
+
+    /// Actualiza solo el titular con edición + fecha (sin tocar el lead)
+    func autoFillTitular() {
+        let edicion = edicionEditada.isEmpty ? String(nextEdicionNumber) : edicionEditada
+        let fecha   = fechaEditada.isEmpty   ? Date().formattedNewsletterDate() : fechaEditada
+        hero.titular = "INSIDE Life #\(edicion) — \(fecha)"
+    }
+
+    /// Actualiza titular + lead a partir de los artículos seleccionados
+    func autoFillHero() {
+        autoFillTitular()
+        guard !selectedItems.isEmpty else { return }
+
+        let categorias = Array(Set(
+            selectedItems.map { $0.categoria.components(separatedBy: " · ").first ?? $0.categoria }
+        ))
+        .filter { !$0.isEmpty }
+        .sorted()
+        .prefix(4)
+        .joined(separator: ", ")
+
+        let temas = selectedItems.prefix(3)
+            .map { "— \($0.titulo)" }
+            .joined(separator: "\n")
+
+        hero.lead = "Esta semana en INSIDE Life:\n\n\(temas)\n\nIA, liderazgo, baloncesto y emprendimiento: lo más relevante de los últimos días."
     }
 
     // MARK: - Reset

@@ -14,6 +14,14 @@ extension Date {
         return formatter.string(from: self)
     }
     
+    /// "17 de mayo de 2026" — para el newsletter
+    func formattedNewsletterDate() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateFormat = "d 'de' MMMM 'de' yyyy"
+        return formatter.string(from: self)
+    }
+
     func timeAgo() -> String {
         let calendar = Calendar.current
         let now = Date()

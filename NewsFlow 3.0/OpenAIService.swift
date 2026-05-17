@@ -102,6 +102,7 @@ class OpenAIService {
     Jorge es emprendedor, ex-deportista de baloncesto, especialista en liderazgo e IA.
     Su voz: directa, clara, informativa, sin adornos ni frases vacías.
     Devuelve SOLO el texto solicitado. Sin títulos, sin hashtags, sin explicaciones.
+    IMPORTANTE: Escribe siempre en castellano, aunque la noticia esté en inglés.
     """
 
     private init() {}
