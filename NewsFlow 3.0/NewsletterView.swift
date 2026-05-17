@@ -24,6 +24,18 @@ struct NewsletterView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
 
+                // Aviso cabecera incompleta
+                if !vm.selectedItems.isEmpty && (vm.hero.titular.isEmpty || vm.hero.lead.isEmpty) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.circle.fill").foregroundColor(.orange)
+                        Text("Genera el titular y la apertura en la pestaña Cabecera antes de previsualizar.")
+                            .font(.caption).foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+                    .background(Color.orange.opacity(0.08))
+                }
+
                 // Error
                 if let error = vm.error {
                     HStack {
@@ -73,9 +85,10 @@ struct NewsletterView: View {
                                 ProgressView().scaleEffect(0.8)
                             } else {
                                 Image(systemName: "eye")
+                                    .foregroundColor(canPreview ? .primary : .secondary)
                             }
                         }
-                        .disabled(vm.selectedItems.isEmpty || isGeneratingPreview)
+                        .disabled(!canPreview || isGeneratingPreview)
 
                         // Publicar
                         Button {
@@ -121,6 +134,12 @@ struct NewsletterView: View {
             if vm.draft == nil { await vm.loadDraft() }
             vm.requestNotificationPermission()
         }
+    }
+
+    private var canPreview: Bool {
+        !vm.selectedItems.isEmpty &&
+        !vm.hero.titular.isEmpty &&
+        !vm.hero.lead.isEmpty
     }
 
     private var draftTitle: String {

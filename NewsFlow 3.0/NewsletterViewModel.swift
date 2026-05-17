@@ -439,8 +439,9 @@ class NewsletterViewModel: ObservableObject {
         guard !selectedItems.isEmpty else { return }
         isGeneratingHero = true
         let articulos = selectedItems.map { (titulo: $0.titulo, categoria: $0.categoria) }
+        let bloques   = bloquesContexto()
         do {
-            hero.titular = try await ai.generateTitular(articulos: articulos)
+            hero.titular = try await ai.generateTitular(articulos: articulos, bloques: bloques)
         } catch {
             self.error = "Error generando titular: \(error.localizedDescription)"
         }
@@ -451,8 +452,9 @@ class NewsletterViewModel: ObservableObject {
         guard !selectedItems.isEmpty else { return }
         isGeneratingHero = true
         let articulos = selectedItems.map { (titulo: $0.titulo, categoria: $0.categoria) }
+        let bloques   = bloquesContexto()
         do {
-            hero.lead = try await ai.generateLead(articulos: articulos)
+            hero.lead = try await ai.generateLead(articulos: articulos, bloques: bloques)
         } catch {
             self.error = "Error generando lead: \(error.localizedDescription)"
         }
@@ -463,15 +465,36 @@ class NewsletterViewModel: ObservableObject {
         guard !selectedItems.isEmpty else { return }
         isGeneratingHero = true
         let articulos = selectedItems.map { (titulo: $0.titulo, categoria: $0.categoria) }
+        let bloques   = bloquesContexto()
         do {
-            async let titular = ai.generateTitular(articulos: articulos)
-            async let lead    = ai.generateLead(articulos: articulos)
+            async let titular = ai.generateTitular(articulos: articulos, bloques: bloques)
+            async let lead    = ai.generateLead(articulos: articulos, bloques: bloques)
             hero.titular = try await titular
             hero.lead    = try await lead
         } catch {
             self.error = "Error generando cabecera: \(error.localizedDescription)"
         }
         isGeneratingHero = false
+    }
+
+    /// Extrae contexto de los bloques extra para enriquecer el titular/lead
+    private func bloquesContexto() -> [String] {
+        extraBlocks.compactMap { block in
+            switch block.type {
+            case .columna:
+                let titulo = block.columnaTitulo.isEmpty ? "" : "Columna: \(block.columnaTitulo)"
+                let texto  = block.columnaTexto.isEmpty  ? block.columnaPrompt : block.columnaTexto
+                return titulo.isEmpty && texto.isEmpty ? nil : [titulo, texto].filter { !$0.isEmpty }.joined(separator: " — ")
+            case .texto:
+                let titulo = block.textoTitle.isEmpty ? "" : block.textoTitle
+                let cuerpo = block.textoBody.isEmpty  ? "" : block.textoBody
+                return titulo.isEmpty && cuerpo.isEmpty ? nil : [titulo, cuerpo].filter { !$0.isEmpty }.joined(separator: ": ")
+            case .callout:
+                return block.calloutBody.isEmpty ? nil : "Callout: \(block.calloutBody)"
+            default:
+                return nil
+            }
+        }
     }
 
     // MARK: - Reset

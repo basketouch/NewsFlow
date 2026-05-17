@@ -102,39 +102,43 @@ class OpenAIService {
     Jorge es emprendedor, ex-deportista de baloncesto, especialista en liderazgo e IA.
     Su voz: directa, clara, informativa, sin adornos ni frases vacías.
     Devuelve SOLO el texto solicitado. Sin títulos, sin hashtags, sin explicaciones.
-    IMPORTANTE: Escribe siempre en castellano, aunque la noticia esté en inglés.
+    REGLA ABSOLUTA: Escribe SIEMPRE en castellano. Si el texto de entrada está en inglés, tradúcelo y reescríbelo en castellano. Nunca devuelvas texto en inglés.
     """
 
     private init() {}
 
     // MARK: - Newsletter: titular impactante
 
-    func generateTitular(articulos: [(titulo: String, categoria: String)]) async throws -> String {
+    func generateTitular(articulos: [(titulo: String, categoria: String)], bloques: [String] = []) async throws -> String {
         let lista = articulos.map { "- [\($0.categoria)] \($0.titulo)" }.joined(separator: "\n")
+        let bloquesTexto = bloques.isEmpty ? "" : "\nContenido adicional de esta edición:\n" + bloques.map { "- \($0)" }.joined(separator: "\n")
         let prompt = """
-        Genera UN titular impactante en castellano para el newsletter de esta semana.
+        Genera UN titular impactante EN CASTELLANO para el newsletter de esta semana.
         Estilo: portada de revista, potente, que provoque curiosidad. Máximo 8 palabras.
         No incluyas "INSIDE Life", números de edición ni fechas.
         Solo devuelve el titular, sin comillas ni explicaciones.
+        OBLIGATORIO: el titular debe estar en castellano.
 
         Noticias de esta semana:
-        \(lista)
+        \(lista)\(bloquesTexto)
         """
         return try await callGPT(system: newsletterSystemPrompt, user: prompt, maxTokens: 40)
     }
 
     // MARK: - Newsletter: texto de entrada (lead)
 
-    func generateLead(articulos: [(titulo: String, categoria: String)]) async throws -> String {
+    func generateLead(articulos: [(titulo: String, categoria: String)], bloques: [String] = []) async throws -> String {
         let categorias = Array(Set(articulos.map { $0.categoria })).sorted().joined(separator: ", ")
+        let bloquesTexto = bloques.isEmpty ? "" : "\nContenido adicional: " + bloques.joined(separator: "; ")
         let prompt = """
         Escribe el texto de entrada del newsletter de esta semana. Entre 40 y 60 palabras.
         Debe ser un aperitivo que enganche al lector: generar curiosidad, transmitir que merece la pena leer.
         No listes los artículos ni sus títulos. No uses frases genéricas como "esta semana te traemos".
         Voz directa, como si Jorge le hablara a un amigo inteligente.
+        OBLIGATORIO: escribe en castellano. Si los temas están en inglés, exprésalos en castellano.
         Solo el texto, sin títulos ni explicaciones.
 
-        Temas de esta edición: \(categorias)
+        Temas de esta edición: \(categorias)\(bloquesTexto)
         """
         return try await callGPT(system: newsletterSystemPrompt, user: prompt, maxTokens: 120)
     }
@@ -143,10 +147,10 @@ class OpenAIService {
 
     func expandResumen(titulo: String, categoria: String, resumen: String) async throws -> String {
         let prompt = """
-        Eres el copywriter de Jorge Lorenzo para su newsletter INSIDE Life.
         Desarrolla esta noticia en profundidad: entre 150 y 200 palabras.
         Añade contexto, por qué importa, y qué implica para el lector.
         Estilo directo, informativo, con la voz de Jorge. Sin titulos ni explicaciones.
+        OBLIGATORIO: redacta en castellano. Si el texto base o el título están en inglés, tradúcelos y reescríbelos en castellano.
 
         Noticia: \(titulo)
         Categoría: \(categoria)
@@ -159,11 +163,11 @@ class OpenAIService {
 
     func pulirConOpinion(titulo: String, resumen: String, opinion: String) async throws -> String {
         let prompt = """
-        Eres el copywriter de Jorge Lorenzo para su newsletter INSIDE Life.
         Jorge ha escrito su opinión personal sobre esta noticia.
         Reescribe el texto integrando su punto de vista como si toda la narrativa fuera de Jorge.
         El resultado debe sonar auténtico, directo y en primera persona si encaja.
         Entre 80 y 120 palabras. Solo devuelve el texto final.
+        OBLIGATORIO: escribe en castellano. Si el resumen está en inglés, tradúcelo al castellano.
 
         Título de la noticia: \(titulo)
         Resumen base: \(resumen)
