@@ -9,7 +9,7 @@ enum NewsletterConfig {
 
     /// Webhook de n8n para regenerar el draft manualmente.
     /// Configúralo añadiendo un nodo "Webhook" al flujo de generación en n8n.
-    static let n8nDraftWebhook = "https://n8n.basketouch.com/webhook/cargar-noticias"
+    static let n8nDraftWebhook = "https://n8n.basketouch.com/webhook/newsletter-cargar-noticias"
 
     static var authHeader: String { "Bearer \(adminSecret)" }
 }
