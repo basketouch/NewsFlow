@@ -66,11 +66,13 @@ struct NewsletterItem: Identifiable {
     let id: String
     var categoria: String
     var titulo: String
-    var resumen: String         // texto original de n8n (referencia)
+    var resumen: String         // texto original (referencia)
     var textoFinal: String      // lo que se publica — editable, puede ser pulido por IA
     var opinion: String         // punto de vista de Jorge (input para IA)
     var style: ArticleStyle
     var destacada: Bool
+    var url: String?            // URL del artículo original
+    var sourceName: String      // nombre de la fuente
 
     init(from draft: DraftArticle) {
         self.id         = "draft-\(draft.id)"
@@ -81,6 +83,8 @@ struct NewsletterItem: Identifiable {
         self.opinion    = ""
         self.style      = .normal
         self.destacada  = draft.destacada
+        self.url        = draft.url
+        self.sourceName = draft.categoria
     }
 
     init(from article: SupabaseArticle) {
@@ -92,6 +96,9 @@ struct NewsletterItem: Identifiable {
         self.opinion    = ""
         self.style      = .normal
         self.destacada  = false
+        let rawURL      = article.url
+        self.url        = (rawURL.hasPrefix("http://") || rawURL.hasPrefix("https://")) ? rawURL : nil
+        self.sourceName = article.sourceName
     }
 }
 

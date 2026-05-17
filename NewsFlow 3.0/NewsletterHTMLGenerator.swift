@@ -176,20 +176,34 @@ struct NewsletterHTMLGenerator {
         let sorted = items.sorted { $0.destacada && !$1.destacada }
         return sorted.enumerated().map { i, item in
             let n = i + 1
-            // La destacada usa clase especial de fondo amarillo; ignora el estilo visual elegido
             let cssClass = item.destacada ? "nl-art nl-art-featured" : item.style.cssClass
+
+            // Enlace "Leer en [fuente] →" solo si hay URL real
+            let sourceLink: String
+            if let url = item.url, !url.isEmpty {
+                let label = item.sourceName.isEmpty ? "fuente original" : item.sourceName
+                sourceLink = """
+                  <div class="art-source-link">
+                    <a href="\(url)" target="_blank" rel="noopener" class="art-read-more">Leer en \(escapeHTML(label)) →</a>
+                  </div>
+                """
+            } else {
+                sourceLink = ""
+            }
+
             return """
             <div class="\(cssClass)" id="a\(n)">
               <div class="art-hdr">
                 <div class="art-n\(item.destacada ? " art-n-featured" : "")">\(n)</div>
                 <div>
-                  <div class="art-src">\(escapeHTML(item.categoria))</div>
+                  <div class="art-src">\(escapeHTML(item.categoria)) · \(escapeHTML(item.sourceName))</div>
                   <h2 class="art-h2">\(escapeHTML(item.titulo))</h2>
                 </div>
               </div>
               <div class="art-body">
                 <p>\(escapeHTML(item.textoFinal))</p>
               </div>
+              \(sourceLink)
             </div>
             """
         }.joined(separator: "\n            ")
@@ -259,6 +273,11 @@ struct NewsletterHTMLGenerator {
         .art-h2{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;line-height:1.22;color:var(--ink);}
         .art-body{font-size:13.5px;line-height:1.8;color:#2d2d2d;}
         .art-body p+p{margin-top:9px;}
+        .art-source-link{margin-top:14px;}
+        .art-read-more{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s;}
+        .art-read-more:hover{border-bottom-color:var(--red);}
+        .nl-art-dark .art-read-more{color:#f5a58c;}
+        .nl-art-blue .art-read-more{color:#f5a58c;}
         .callout{background:var(--off);border-left:3px solid var(--red);padding:11px 14px;margin:15px 0;font-size:12.5px;line-height:1.65;color:#333;}
         .callout-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);margin-bottom:5px;}
         .nl-art-dark{background:var(--ink);}
