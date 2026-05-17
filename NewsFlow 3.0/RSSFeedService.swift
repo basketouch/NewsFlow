@@ -233,13 +233,10 @@ class RSSFeedService {
             }
         }
         
-        // Si no se pudieron extraer artículos (por ejemplo, si el formato es diferente),
-        // usar datos de ejemplo como fallback
         if articles.isEmpty {
-            print("No se pudieron extraer artículos del RSS de \(source), usando datos de ejemplo")
-            return generateSampleArticlesForFallback(source: source)
+            print("⚠️ RSS \(source): no se extrajeron artículos del feed")
         }
-        
+
         return articles
     }
     

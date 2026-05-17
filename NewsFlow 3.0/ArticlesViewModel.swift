@@ -311,6 +311,9 @@ class ArticlesViewModel: ObservableObject {
     func addFeed(name: String, urlString: String) {
         let newFeed = RSSFeed(name: name, urlString: urlString)
         feedManager.addFeed(newFeed)
+        Task {
+            await loadArticlesForced()
+        }
     }
     
     // Actualizar una fuente RSS existente
