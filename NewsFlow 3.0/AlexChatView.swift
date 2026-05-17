@@ -57,7 +57,7 @@ struct AlexChatView: View {
             Text("⚡").font(.system(size: 44))
             Text("Hola, soy Alex")
                 .font(.system(size: 22, weight: .bold))
-            Text("Accedo a tus artículos, posts y newsletter.\n¿En qué trabajamos?")
+            Text("Tu asistente operativo. NewsFlow, email, búsquedas, servidor y más.\n¿En qué trabajamos?")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -86,10 +86,12 @@ struct AlexChatView: View {
     }
 
     private let suggestions = [
-        "¿Qué artículos tengo pendientes?",
+        "¿Qué artículos tengo pendientes en NewsFlow?",
+        "Busca noticias sobre inteligencia artificial hoy",
+        "¿Qué tareas tengo programadas?",
+        "Revisa mis emails de hoy",
+        "¿Cómo está el servidor VPS?",
         "Crea un post de LinkedIn con el último artículo",
-        "¿Cuál es el estado del newsletter esta semana?",
-        "Resume los vídeos en la cola de publicación",
     ]
 
     // MARK: - Tools indicator
