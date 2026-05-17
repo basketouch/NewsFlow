@@ -74,10 +74,14 @@ class NewsletterViewModel: ObservableObject {
         isLoading = true
         error = nil
 
-        // Edición correlativa y fecha de hoy
-        edicionEditada = String(nextEdicionNumber)
-        selectedDate   = Date()
-        fechaEditada   = Date().formattedNewsletterDate()
+        // Edición correlativa solo si aún no se ha editado manualmente
+        if edicionEditada.isEmpty {
+            edicionEditada = String(nextEdicionNumber)
+        }
+        if fechaEditada.isEmpty {
+            selectedDate = Date()
+            fechaEditada = Date().formattedNewsletterDate()
+        }
 
         do {
             let fetched = try await service.fetchDraft()

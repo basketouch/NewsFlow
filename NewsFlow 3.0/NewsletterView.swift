@@ -477,6 +477,14 @@ struct HeroEditorSection: View {
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 60)
+                    Button {
+                        vm.edicionEditada = String(vm.nextEdicionNumber)
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
                 DatePicker("Fecha", selection: $vm.selectedDate, displayedComponents: .date)
                     .environment(\.locale, Locale(identifier: "es_ES"))
