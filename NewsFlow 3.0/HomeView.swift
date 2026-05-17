@@ -44,6 +44,7 @@ struct HomeTabView: View {
     @State private var showCalendario = false
     @State private var showNewsletter = false
     @State private var showVideos     = false
+    @State private var showAlex       = false
 
     private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
 
@@ -95,6 +96,36 @@ struct HomeTabView: View {
                         showNewsletter = true
                     }
                 }
+
+                // Alex — tile ancho completo
+                Button { showAlex = true } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color.purple.opacity(0.12))
+                                .frame(width: 56, height: 56)
+                            Text("⚡")
+                                .font(.system(size: 26))
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Alex")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.primary)
+                            Text("Asistente operativo IA · NewsFlow")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(Color(.tertiaryLabel))
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(18)
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
@@ -121,6 +152,9 @@ struct HomeTabView: View {
                 webTitleForPost: .constant(nil)
             )
             .edgesIgnoringSafeArea(.all)
+        }
+        .sheet(isPresented: $showAlex) {
+            AlexChatView()
         }
     }
 }
