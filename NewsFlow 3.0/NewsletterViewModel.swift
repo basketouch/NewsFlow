@@ -9,19 +9,13 @@ class NewsletterViewModel: ObservableObject {
     // MARK: - Estado
 
     @Published var draft: NewsletterDraft? = nil
-    @Published var selectedItems: [NewsletterItem] = [] {
-        didSet { autoFillHero() }
-    }
+    @Published var selectedItems: [NewsletterItem] = []
     @Published var hero = NewsletterHero.empty
-    @Published var edicionEditada: String = "" {
-        didSet { autoFillTitular() }
-    }
+    @Published var edicionEditada: String = ""
     @Published var selectedDate: Date = Date() {
-        didSet {
-            fechaEditada = selectedDate.formattedNewsletterDate()
-            autoFillTitular()
-        }
+        didSet { fechaEditada = selectedDate.formattedNewsletterDate() }
     }
+    @Published var isGeneratingHero = false
     @Published var fechaEditada: String = ""
     @Published var extraBlocks: [NewsletterBlock] = []
 
@@ -93,7 +87,6 @@ class NewsletterViewModel: ObservableObject {
             print("ℹ️ Draft no disponible: \(error.localizedDescription)")
         }
 
-        autoFillTitular()
         isLoading = false
     }
 
@@ -440,33 +433,45 @@ class NewsletterViewModel: ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
-    // MARK: - Auto-relleno de cabecera
+    // MARK: - Auto-relleno de cabecera con IA
 
-    /// Actualiza solo el titular con edición + fecha (sin tocar el lead)
-    func autoFillTitular() {
-        let edicion = edicionEditada.isEmpty ? String(nextEdicionNumber) : edicionEditada
-        let fecha   = fechaEditada.isEmpty   ? Date().formattedNewsletterDate() : fechaEditada
-        hero.titular = "INSIDE Life #\(edicion) — \(fecha)"
+    func generarTitular() async {
+        guard !selectedItems.isEmpty else { return }
+        isGeneratingHero = true
+        let articulos = selectedItems.map { (titulo: $0.titulo, categoria: $0.categoria) }
+        do {
+            hero.titular = try await ai.generateTitular(articulos: articulos)
+        } catch {
+            self.error = "Error generando titular: \(error.localizedDescription)"
+        }
+        isGeneratingHero = false
     }
 
-    /// Actualiza titular + lead a partir de los artículos seleccionados
-    func autoFillHero() {
-        autoFillTitular()
+    func generarLead() async {
         guard !selectedItems.isEmpty else { return }
+        isGeneratingHero = true
+        let articulos = selectedItems.map { (titulo: $0.titulo, categoria: $0.categoria) }
+        do {
+            hero.lead = try await ai.generateLead(articulos: articulos)
+        } catch {
+            self.error = "Error generando lead: \(error.localizedDescription)"
+        }
+        isGeneratingHero = false
+    }
 
-        let categorias = Array(Set(
-            selectedItems.map { $0.categoria.components(separatedBy: " · ").first ?? $0.categoria }
-        ))
-        .filter { !$0.isEmpty }
-        .sorted()
-        .prefix(4)
-        .joined(separator: ", ")
-
-        let temas = selectedItems.prefix(3)
-            .map { "— \($0.titulo)" }
-            .joined(separator: "\n")
-
-        hero.lead = "Esta semana en INSIDE Life:\n\n\(temas)\n\nIA, liderazgo, baloncesto y emprendimiento: lo más relevante de los últimos días."
+    func generarHeroCompleto() async {
+        guard !selectedItems.isEmpty else { return }
+        isGeneratingHero = true
+        let articulos = selectedItems.map { (titulo: $0.titulo, categoria: $0.categoria) }
+        do {
+            async let titular = ai.generateTitular(articulos: articulos)
+            async let lead    = ai.generateLead(articulos: articulos)
+            hero.titular = try await titular
+            hero.lead    = try await lead
+        } catch {
+            self.error = "Error generando cabecera: \(error.localizedDescription)"
+        }
+        isGeneratingHero = false
     }
 
     // MARK: - Reset

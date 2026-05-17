@@ -107,6 +107,38 @@ class OpenAIService {
 
     private init() {}
 
+    // MARK: - Newsletter: titular impactante
+
+    func generateTitular(articulos: [(titulo: String, categoria: String)]) async throws -> String {
+        let lista = articulos.map { "- [\($0.categoria)] \($0.titulo)" }.joined(separator: "\n")
+        let prompt = """
+        Genera UN titular impactante en castellano para el newsletter de esta semana.
+        Estilo: portada de revista, potente, que provoque curiosidad. Máximo 8 palabras.
+        No incluyas "INSIDE Life", números de edición ni fechas.
+        Solo devuelve el titular, sin comillas ni explicaciones.
+
+        Noticias de esta semana:
+        \(lista)
+        """
+        return try await callGPT(system: newsletterSystemPrompt, user: prompt, maxTokens: 40)
+    }
+
+    // MARK: - Newsletter: texto de entrada (lead)
+
+    func generateLead(articulos: [(titulo: String, categoria: String)]) async throws -> String {
+        let categorias = Array(Set(articulos.map { $0.categoria })).sorted().joined(separator: ", ")
+        let prompt = """
+        Escribe el texto de entrada del newsletter de esta semana. Entre 40 y 60 palabras.
+        Debe ser un aperitivo que enganche al lector: generar curiosidad, transmitir que merece la pena leer.
+        No listes los artículos ni sus títulos. No uses frases genéricas como "esta semana te traemos".
+        Voz directa, como si Jorge le hablara a un amigo inteligente.
+        Solo el texto, sin títulos ni explicaciones.
+
+        Temas de esta edición: \(categorias)
+        """
+        return try await callGPT(system: newsletterSystemPrompt, user: prompt, maxTokens: 120)
+    }
+
     // MARK: - Newsletter: ampliar resumen
 
     func expandResumen(titulo: String, categoria: String, resumen: String) async throws -> String {

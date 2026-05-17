@@ -448,60 +448,87 @@ struct HeroEditorSection: View {
 
     var body: some View {
         Form {
+
+            // MARK: Edición + Fecha
             Section {
                 HStack {
-                    Text("Número")
+                    Text("Número de edición")
                     Spacer()
                     TextField("1", text: $vm.edicionEditada)
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
-                        .frame(width: 80)
+                        .frame(width: 60)
                 }
                 DatePicker("Fecha", selection: $vm.selectedDate, displayedComponents: .date)
                     .environment(\.locale, Locale(identifier: "es_ES"))
-            } header: {
-                Text("Edición")
             } footer: {
-                Text("Edición #\(vm.edicionEditada) · \(vm.fechaEditada)")
+                Text("#\(vm.edicionEditada) · \(vm.fechaEditada)")
                     .font(.caption).foregroundColor(.secondary)
             }
 
+            // MARK: Generar todo de golpe
+            if !vm.selectedItems.isEmpty {
+                Section {
+                    Button {
+                        Task { await vm.generarHeroCompleto() }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if vm.isGeneratingHero {
+                                ProgressView().scaleEffect(0.85)
+                                Text("Generando...").font(.subheadline)
+                            } else {
+                                Label("Generar titular y apertura con IA", systemImage: "sparkles")
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            Spacer()
+                        }
+                    }
+                    .disabled(vm.isGeneratingHero)
+                    .foregroundColor(.purple)
+                }
+            }
+
+            // MARK: Titular
             Section {
-                TextField("Titular del newsletter", text: $vm.hero.titular, axis: .vertical)
+                TextField("Titular impactante...", text: $vm.hero.titular, axis: .vertical)
                     .lineLimit(2...4)
             } header: {
                 HStack {
                     Text("Titular")
                     Spacer()
                     Button {
-                        vm.autoFillTitular()
+                        Task { await vm.generarTitular() }
                     } label: {
-                        Label("Auto", systemImage: "arrow.clockwise")
+                        Label("Regenerar", systemImage: "arrow.clockwise")
                             .font(.caption)
                     }
-                }
-            }
-
-            Section {
-                TextEditor(text: $vm.hero.lead)
-                    .frame(minHeight: 120)
-            } header: {
-                HStack {
-                    Text("Texto de entrada")
-                    Spacer()
-                    Button {
-                        vm.autoFillHero()
-                    } label: {
-                        Label("Generar", systemImage: "sparkles")
-                            .font(.caption)
-                    }
-                    .disabled(vm.selectedItems.isEmpty)
+                    .disabled(vm.selectedItems.isEmpty || vm.isGeneratingHero)
                 }
             } footer: {
-                if vm.selectedItems.isEmpty {
-                    Text("Selecciona artículos en la pestaña Artículos para auto-generar el texto de entrada.")
-                        .font(.caption).foregroundColor(.secondary)
+                Text("Impactante, máx. 8 palabras. Sin \"INSIDE Life\" ni número.")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+
+            // MARK: Texto de entrada
+            Section {
+                TextEditor(text: $vm.hero.lead)
+                    .frame(minHeight: 100)
+            } header: {
+                HStack {
+                    Text("Apertura")
+                    Spacer()
+                    Button {
+                        Task { await vm.generarLead() }
+                    } label: {
+                        Label("Regenerar", systemImage: "arrow.clockwise")
+                            .font(.caption)
+                    }
+                    .disabled(vm.selectedItems.isEmpty || vm.isGeneratingHero)
                 }
+            } footer: {
+                Text("40-60 palabras. Aperitivo que engancha, sin listar artículos.")
+                    .font(.caption).foregroundColor(.secondary)
             }
         }
     }
