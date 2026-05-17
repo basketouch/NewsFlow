@@ -181,10 +181,9 @@ struct NewsletterHTMLGenerator {
             // Enlace "Leer en [fuente] →" solo si hay URL real
             let sourceLink: String
             if let url = item.url, !url.isEmpty {
-                let label = item.sourceName.isEmpty ? "fuente original" : item.sourceName
                 sourceLink = """
                   <div class="art-source-link">
-                    <a href="\(url)" target="_blank" rel="noopener" class="art-read-more">Leer en \(escapeHTML(label)) →</a>
+                    <a href="\(url)" target="_blank" rel="noopener" class="art-read-more">Leer más →</a>
                   </div>
                 """
             } else {
